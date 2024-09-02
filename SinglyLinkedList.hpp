@@ -31,7 +31,7 @@ private:
      */
     struct Node {
         T data; //!< Data stored in the node.
-        std::shared_ptr<Node> next; //!< Pointer to the next node.
+        std::unique_ptr<Node> next; //!< Pointer to the next node.
 
         /**
          * @brief Constructs a Node with given value.
@@ -78,7 +78,7 @@ private:
         }
     };
 
-    std::shared_ptr<Node> head; //!< Pointer to the first node in the list.
+    std::unique_ptr<Node> head; //!< Pointer to the first node in the list.
     Node* tail; //!< Pointer to the last node in the list.
     std::size_t list_size; //!< Number of elements in the list.
 
