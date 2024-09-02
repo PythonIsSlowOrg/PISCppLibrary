@@ -123,47 +123,14 @@ public:
         }
     }
 
-/*
-It raises 
-```
-:697:20: error: use of overloaded operator '=' is ambiguous (with operand types 'SinglyLinkedList' and 'typename remove_reference<SinglyLinkedList &>::type' (aka 'SinglyLinkedList')) listMoveAssign = std::move(listCopy); ~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~ :129:23: note: candidate function SinglyLinkedList& operator=(const SinglyLinkedList other) { ^ :150:23: note: candidate function SinglyLinkedList& operator=(SinglyLinkedList&& other) noexcept { ^ 1 error generated.
-```
-error if not commented.
-     **
-     * @brief Copy assignment operator for SinglyLinkedList that follows copy-and-swap idiom.
-     * @param other The SinglyLinkedList to copy.
-     * @return Reference to this SinglyLinkedList.
-     *
-    SinglyLinkedList& operator=(SinglyLinkedList   other) {
-        swap(*this, other);
-        return *this;
-    }
-*/
-    // Copy assignment operator (deleted to avoid ambiguity)
-    SinglyLinkedList& operator=(const SinglyLinkedList& other) = delete;
-
     /**
-     * @brief Move constructor for SinglyLinkedList.
-     * @param other The SinglyLinkedList to move from.
-     */
-    SinglyLinkedList(SinglyLinkedList&& other) noexcept : head(std::move(other.head)), tail(other.tail), list_size(other.list_size) {
-        other.tail = nullptr;
-        other.list_size = 0;
-    }
-
-    /**
-     * @brief Move assignment operator for SinglyLinkedList.
+     * @brief Assignment operator for SinglyLinkedList.
      * @param other The SinglyLinkedList to move from.
      * @return Reference to this SinglyLinkedList.
      */
-    SinglyLinkedList& operator=(SinglyLinkedList&& other) noexcept {
-        if (this != &other) {
-            head = std::move(other.head);
-            tail = other.tail;
-            list_size = other.list_size;
-            other.tail = nullptr;
-            other.list_size = 0;
-        }
+    SinglyLinkedList& operator=(const SinglyLinkedList& other) {
+        if (this == &other) {return *this;}
+        *this = other;
         return *this;
     }
 
