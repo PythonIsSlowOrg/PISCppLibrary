@@ -619,12 +619,12 @@ error if not commented.
 
 template<typename T>
 void printList(const SinglyLinkedList<T>& list) {
-    std::cout << "[";
+    std::cout << "{";
     for (int i = 0; i < list.size(); ++i) {
         std::cout << list.get(i);
         if (i != list.size() - 1) std::cout << ",";
     }
-    std::cout << "]" << std::endl;
+    std::cout << "}" << std::endl;
 }
 
 #endif // SINGLYLINKEDLIST_HPP
