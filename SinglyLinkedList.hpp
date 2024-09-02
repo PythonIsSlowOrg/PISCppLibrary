@@ -10,6 +10,7 @@
 #include <vector>
 #include <array>
 #include <list>
+#include <cassert>
 
 /**
  * @brief A singly linked list implementation.
@@ -30,7 +31,7 @@ private:
      */
     struct Node {
         T data; //!< Data stored in the node.
-        std::unique_ptr<Node> next; //!< Pointer to the next node.
+        std::shared_ptr<Node> next; //!< Pointer to the next node.
 
         /**
          * @brief Constructs a Node with given value.
@@ -77,7 +78,7 @@ private:
         }
     };
 
-    std::unique_ptr<Node> head; //!< Pointer to the first node in the list.
+    std::shared_ptr<Node> head; //!< Pointer to the first node in the list.
     Node* tail; //!< Pointer to the last node in the list.
     std::size_t list_size; //!< Number of elements in the list.
 
@@ -113,22 +114,37 @@ public:
      * @param other The SinglyLinkedList to copy.
      */
     SinglyLinkedList(const SinglyLinkedList& other) : head(nullptr), tail(nullptr), list_size(0) {
-        Node* current = other.head.get();
-        while (current != nullptr) {
-            push_back(current->data);
-            current = current->next.get();
+        if (this != &other) {
+            clear();
+            Node* current = other.head.get();
+            while (current != nullptr) {
+                push_back(current->data);
+                current = current->next.get();
+            }
         }
     }
 
-    /**
+/*
+     **
      * @brief Copy assignment operator for SinglyLinkedList.
      * @param other The SinglyLinkedList to copy.
      * @return Reference to this SinglyLinkedList.
-     */
-    SinglyLinkedList& operator=(SinglyLinkedList other) {
-        swap(*this, other);
+     *
+    SinglyLinkedList& operator=(const SinglyLinkedList other) {
+        if (this != &other) {
+            clear();
+            Node* current = other.head.get();
+            while (current != nullptr) {
+                push_back(current->data);
+                current = current->next.get();
+            }
+        }
         return *this;
     }
+*/
+
+    // Copy assignment operator (deleted to avoid ambiguity)
+    SinglyLinkedList& operator=(const SinglyLinkedList& other) = delete;
 
     /**
      * @brief Move constructor for SinglyLinkedList.
@@ -296,7 +312,7 @@ public:
      * @return The data at the head.
      * @throws std::runtime_error if the list is empty.
      */
-    T head() const {
+    T getHead() const {
         if (!head) {
             throw std::runtime_error("List is empty: cannot access head.");
         }
@@ -308,7 +324,7 @@ public:
      * @return The data at the tail.
      * @throws std::runtime_error if the list is empty.
      */
-    T tail() const {
+    T getTail() const {
         if (!tail) {
             throw std::runtime_error("List is empty: cannot access tail.");
         }
@@ -458,15 +474,6 @@ public:
     }
 
     /**
-     * @brief Converts the list to a std::array with exact size.
-     * @return A std::array containing the list elements.
-     * @throws std::runtime_error if the list size does not match the array size.
-     */
-    std::array<T, list_size> to_array_exact() const {
-        return to_array_auto<list_size>();
-    }
-
-    /**
      * @brief Converts the list to a std::list.
      * @return A std::list containing the list elements.
      */
@@ -484,10 +491,9 @@ public:
      * Provides forward iteration over the list elements.
      */
     class Iterator {
-    private:
+    public:
         Node* current; //!< Current node in the iteration.
 
-    public:
         using iterator_category = std::forward_iterator_tag;
         using value_type = T;
         using difference_type = std::ptrdiff_t;
@@ -591,5 +597,7 @@ public:
      * @return A ConstIterator pointing to one past the last element.
      */
     ConstIterator end() const { return ConstIterator(nullptr); }
+
+};
 
 #endif // SINGLYLINKEDLIST_HPP
