@@ -10,7 +10,6 @@
 #include <vector>
 #include <array>
 #include <list>
-#include <cassert>
 
 /**
  * @brief A singly linked list implementation.
@@ -125,24 +124,21 @@ public:
     }
 
 /*
+It raises 
+```
+:697:20: error: use of overloaded operator '=' is ambiguous (with operand types 'SinglyLinkedList' and 'typename remove_reference<SinglyLinkedList &>::type' (aka 'SinglyLinkedList')) listMoveAssign = std::move(listCopy); ~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~ :129:23: note: candidate function SinglyLinkedList& operator=(const SinglyLinkedList other) { ^ :150:23: note: candidate function SinglyLinkedList& operator=(SinglyLinkedList&& other) noexcept { ^ 1 error generated.
+```
+error if not commented.
      **
-     * @brief Copy assignment operator for SinglyLinkedList.
+     * @brief Copy assignment operator for SinglyLinkedList that follows copy-and-swap idiom.
      * @param other The SinglyLinkedList to copy.
      * @return Reference to this SinglyLinkedList.
      *
-    SinglyLinkedList& operator=(const SinglyLinkedList other) {
-        if (this != &other) {
-            clear();
-            Node* current = other.head.get();
-            while (current != nullptr) {
-                push_back(current->data);
-                current = current->next.get();
-            }
-        }
+    SinglyLinkedList& operator=(SinglyLinkedList   other) {
+        swap(*this, other);
         return *this;
     }
 */
-
     // Copy assignment operator (deleted to avoid ambiguity)
     SinglyLinkedList& operator=(const SinglyLinkedList& other) = delete;
 
@@ -309,26 +305,47 @@ public:
 
     /**
      * @brief Retrieves the data at the head of the list.
-     * @return The data at the head.
+     * @return A reference to the data at the head.
      * @throws std::runtime_error if the list is empty.
      */
-    T getHead() const {
+    T& getHead() const {
         if (!head) {
             throw std::runtime_error("List is empty: cannot access head.");
         }
-        return head->data;
+        return *(head->data);
     }
 
     /**
      * @brief Retrieves the data at the tail of the list.
-     * @return The data at the tail.
+     * @return A reference to the data at the tail.
      * @throws std::runtime_error if the list is empty.
      */
-    T getTail() const {
+    T& getTail() const {
         if (!tail) {
             throw std::runtime_error("List is empty: cannot access tail.");
         }
-        return tail->data;
+        return *(tail->data);
+    }
+
+    /**
+     * @brief Get the node at a specific index.
+     * @param index The index.
+     * @return A reference to the node at the index.
+     * @throws std::out_of_range if the index is out of range.
+     * @throws std::runtime_error if the index is not found.
+     */
+    T& get(std::size_t index) {
+        if (index >= list_size) throw std::out_of_range("Index out of range");
+        Node* current = head.get();
+        std::size_t i = 0;
+        while (i != index) {
+            if (!current->next) {
+                throw std::runtime_error("Index not found.");
+            }
+            current = current->next.get();
+            ++i;
+        }
+        return *(current->data);
     }
 
     /**
@@ -599,5 +616,15 @@ public:
     ConstIterator end() const { return ConstIterator(nullptr); }
 
 };
+
+template<typename T>
+void printList(const SinglyLinkedList<T>& list) {
+    std::cout << "[";
+    for (int i = 0; i < list.size(); ++i) {
+        std::cout << list.get(i);
+        if (i != list.size() - 1) std::cout << ",";
+    }
+    std::cout << "]" << std::endl;
+}
 
 #endif // SINGLYLINKEDLIST_HPP
