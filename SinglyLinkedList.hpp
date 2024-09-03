@@ -30,7 +30,7 @@ private:
      */
     struct Node {
         T data; //!< Data stored in the node.
-        std::unique_ptr<Node> next; //!< Pointer to the next node.
+        std::shared_ptr<Node> next; //!< Pointer to the next node.
 
         /**
          * @brief Constructs a Node with given value.
@@ -77,11 +77,16 @@ private:
         }
     };
 
-    std::unique_ptr<Node> head; //!< Pointer to the first node in the list.
+    std::shared_ptr<Node> head; //!< Pointer to the first node in the list.
     Node* tail; //!< Pointer to the last node in the list.
     std::size_t list_size; //!< Number of elements in the list.
 
 public:
+    using value_type = T;
+    using reference = T&;
+    using const_reference = const T&;
+    using size_type = std::size_t;
+
     /**
      * @brief Default constructor for SinglyLinkedList.
      */
@@ -109,6 +114,14 @@ public:
     ~SinglyLinkedList() = default;
 
     /**
+     * @brief Check if the SinglyLinkedList is empty.
+     * @return True if the SinglyLinkedList is empty, false if not.
+     */
+    bool empty() {
+        return !this->head;
+    }
+
+    /**
      * @brief Copy constructor for SinglyLinkedList.
      * @param other The SinglyLinkedList to copy.
      */
@@ -130,7 +143,9 @@ public:
      */
     SinglyLinkedList& operator=(const SinglyLinkedList& other) {
         if (this == &other) {return *this;}
-        *this = other;
+        this->head = other.head;
+        this->tail = other.tail;
+        this->list_size = other.list_size;
         return *this;
     }
 
@@ -138,7 +153,7 @@ public:
      * @brief Adds a new element to the end of the list.
      * @param val The value to add.
      */
-    void push_back(T val) {
+    void push_back(const T val) {
         auto newNode = std::make_unique<Node>(std::move(val));
         Node* newNodePtr = newNode.get();
         if (!head) {
@@ -149,6 +164,14 @@ public:
             tail = newNodePtr;
         }
         ++list_size;
+    }
+
+    /**
+     * @brief Adds a new element to the end of the list.
+     * @param val The value to add.
+     */
+    void push(const T val) {
+        push_back(val);
     }
 
     /**
@@ -203,6 +226,14 @@ public:
             tail = nullptr;
         }
         --list_size;
+    }
+
+    /**
+     * @brief Removes the first element of the list.
+     * @throws std::runtime_error if the list is empty.
+     */
+    void pop() {
+        pop_front();
     }
 
     /**
@@ -275,11 +306,11 @@ public:
      * @return A reference to the data at the head.
      * @throws std::runtime_error if the list is empty.
      */
-    T& getHead() const {
+    T& front() const {
         if (!head) {
             throw std::runtime_error("List is empty: cannot access head.");
         }
-        return *(head->data);
+        return head->data;
     }
 
     /**
@@ -287,11 +318,11 @@ public:
      * @return A reference to the data at the tail.
      * @throws std::runtime_error if the list is empty.
      */
-    T& getTail() const {
+    T& back() const {
         if (!tail) {
             throw std::runtime_error("List is empty: cannot access tail.");
         }
-        return *(tail->data);
+        return tail->data;
     }
 
     /**
@@ -312,7 +343,7 @@ public:
             current = current->next.get();
             ++i;
         }
-        return *(current->data);
+        return current->data;
     }
 
     /**
@@ -331,6 +362,32 @@ public:
         swap(first.head, second.head);
         swap(first.tail, second.tail);
         swap(first.list_size, second.list_size);
+    }
+
+    /**
+     * @brief Check if this list is equal to another list.
+     * @param other The list to be compared with this list.
+     * @return Whether the two lists are equal.
+     */
+    bool operator==(const SinglyLinkedList<T>& other) const {
+        if (this->size() != other.size()) return false;
+        auto it1 = this->begin();
+        auto it2 = other.begin();
+        while (it1 != this->end() && it2 != other.end()) {
+            if (*it1 != *it2) return false;
+            ++it1;
+            ++it2;
+        }
+        return true;
+    }
+
+    /**
+     * @brief Check if this list is not equal to another list.
+     * @param other The list to be compared with this list.
+     * @return Whether the two lists are not equal.
+     */
+    bool operator!=(const SinglyLinkedList<T>& other) const {
+        return !(*this == other);
     }
 
     /**
