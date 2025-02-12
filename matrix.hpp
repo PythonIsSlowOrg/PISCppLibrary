@@ -1,66 +1,73 @@
 #ifndef MATRIX_HPP
 #define MATRIX_HPP
 
-#include <vector>
+#include <array>
 #include <stdexcept>
 #include <cmath>
 #include <algorithm>
 #include <numeric>
 
-template <typename T>
+template <typename T, int R, int C>
 class matrix {
 public:
-    int rows;
-    int cols;
-    std::vector<T> vals;
+    std::array<T, R*C> vals;
 
-    matrix(int _rows, int _cols) : rows(_rows), cols(_cols) {
-        vals.resize(cols * rows, T{});
+    matrix() {}
+    
+    int rows() const {
+        return R;
+    }
+    
+    int cols() const {
+        return C;
     }
 
     T& get(int i, int j) {
-        if (i < 0 || i >= rows || j < 0 || j >= cols)
+        if (i < 0 || i >= R || j < 0 || j >= C)
             throw std::out_of_range("Index out of bounds");
-        return vals[i * cols + j];
+        return vals[i * C + j];
     }
 
     const T& get(int i, int j) const {
-        if (i < 0 || i >= rows || j < 0 || j >= cols)
+        if (i < 0 || i >= R || j < 0 || j >= C)
             throw std::out_of_range("Index out of bounds");
-        return vals[i * cols + j];
+        return vals[i * C + j];
     }
 
-    std::vector<T> getRow(int i) const {
-        if (i < 0 || i >= rows)
+    std::array<T, C> getRow(int i) const {
+        if (i < 0 || i >= R)
             throw std::out_of_range("Row index out of bounds");
-        return std::vector<T>(vals.begin() + i * cols, vals.begin() + (i + 1) * cols);
+        std::array<T, C> row;
+        std::copy_n(vals.begin() + i * C, C, row.begin());
+        return row;
     }
 
-    std::vector<T> getCol(int j) const {
-        if (j < 0 || j >= cols)
+    std::array<T, R> getCol(int j) const {
+        if (j < 0 || j >= C)
             throw std::out_of_range("Column index out of bounds");
-        std::vector<T> col(rows);
-        for (int i = 0; i < rows; ++i)
-            col[i] = get(i, j);
+        std::array<T, R> col;
+        for (int i = 0; i < R; ++i)
+            col[i] = vals[i * C + j];
         return col;
     }
 
     matrix operator*(const matrix& other) const {
-        if (cols != other.rows)
-            throw std::invalid_argument("Invalid matrix dimensions for multiplication");
-        
-        matrix result(rows, other.cols);
-        for (int i = 0; i < rows; ++i)
-            for (int j = 0; j < other.cols; ++j)
-                for (int k = 0; k < cols; ++k)
-                    result.get(i, j) += get(i, k) * other.get(k, j);
+        static_assert(C == R, "Matrix dimensions must match for multiplication");
+        matrix result;
+        for (int i = 0; i < R; ++i)
+            for (int j = 0; j < C; ++j) {
+                T sum = T{};
+                for (int k = 0; k < C; ++k)
+                    sum += get(i, k) * other.get(k, j);
+                result.get(i, j) = sum;
+            }
         return result;
     }
 
     matrix operator*(const T& scalar) const {
-        matrix result = *this;
-        for (auto& val : result.vals)
-            val *= scalar;
+        matrix result;
+        std::transform(vals.begin(), vals.end(), result.vals.begin(),
+                      [scalar](const T& val) { return val * scalar; });
         return result;
     }
 
@@ -70,140 +77,116 @@ public:
     }
 
     matrix& operator*=(const T& scalar) {
-        for (auto& val : vals)
-            val *= scalar;
+        std::transform(vals.begin(), vals.end(), vals.begin(),
+                      [scalar](T& val) { return val * scalar; });
         return *this;
     }
 
     matrix operator+(const matrix& other) const {
-        if (rows != other.rows || cols != other.cols)
-            throw std::invalid_argument("Matrix dimensions must match for addition");
-        
-        matrix result = *this;
-        for (size_t i = 0; i < vals.size(); ++i)
-            result.vals[i] += other.vals[i];
+        matrix result;
+        std::transform(vals.begin(), vals.end(), other.vals.begin(),
+                      result.vals.begin(), std::plus<T>());
         return result;
     }
 
     matrix operator+(const T& scalar) const {
-        matrix result = *this;
-        for (auto& val : result.vals)
-            val += scalar;
+        matrix result;
+        std::transform(vals.begin(), vals.end(), result.vals.begin(),
+                      [scalar](const T& val) { return val + scalar; });
         return result;
     }
 
     matrix& operator+=(const matrix& other) {
-        if (rows != other.rows || cols != other.cols)
-            throw std::invalid_argument("Matrix dimensions must match for addition");
-        
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] += other.vals[i];
+        std::transform(vals.begin(), vals.end(), other.vals.begin(),
+                      vals.begin(), std::plus<T>());
         return *this;
     }
 
     matrix& operator+=(const T& scalar) {
-        for (auto& val : vals)
-            val += scalar;
+        std::transform(vals.begin(), vals.end(), vals.begin(),
+                      [scalar](T& val) { return val + scalar; });
         return *this;
     }
 
     matrix& operator++() {
-        if (rows != cols)
-            throw std::invalid_argument("Matrix must be square for unit addition");
-        
-        for (int i = 0; i < rows; ++i)
-            get(i, i) += T{1};
+        unit();
         return *this;
     }
 
     matrix operator-(const matrix& other) const {
-        if (rows != other.rows || cols != other.cols)
-            throw std::invalid_argument("Matrix dimensions must match for subtraction");
-        
-        matrix result = *this;
-        for (size_t i = 0; i < vals.size(); ++i)
-            result.vals[i] -= other.vals[i];
+        matrix result;
+        std::transform(vals.begin(), vals.end(), other.vals.begin(),
+                      result.vals.begin(), std::minus<T>());
         return result;
     }
 
     matrix operator-(const T& scalar) const {
-        matrix result = *this;
-        for (auto& val : result.vals)
-            val -= scalar;
+        matrix result;
+        std::transform(vals.begin(), vals.end(), result.vals.begin(),
+                      [scalar](const T& val) { return val - scalar; });
         return result;
     }
 
     matrix& operator-=(const matrix& other) {
-        if (rows != other.rows || cols != other.cols)
-            throw std::invalid_argument("Matrix dimensions must match for subtraction");
-        
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] -= other.vals[i];
+        std::transform(vals.begin(), vals.end(), other.vals.begin(),
+                      vals.begin(), std::minus<T>());
         return *this;
     }
 
     matrix& operator-=(const T& scalar) {
-        for (auto& val : vals)
-            val -= scalar;
+        std::transform(vals.begin(), vals.end(), vals.begin(),
+                      [scalar](T& val) { return val - scalar; });
         return *this;
     }
 
     matrix& operator--() {
-        if (rows != cols)
-            throw std::invalid_argument("Matrix must be square for unit subtraction");
-        
-        for (int i = 0; i < rows; ++i)
-            get(i, i) -= T{1};
+        unit();
+        *this *= T{-1};
         return *this;
     }
 
     matrix transpose() const {
-        matrix result(cols, rows);
-        for (int i = 0; i < rows; ++i)
-            for (int j = 0; j < cols; ++j)
+        matrix<T, C, R> result;
+        for (int i = 0; i < R; ++i)
+            for (int j = 0; j < C; ++j)
                 result.get(j, i) = get(i, j);
         return result;
     }
 
     T det() const {
-        if (rows != cols)
-            throw std::invalid_argument("Matrix must be square for determinant");
-
-        if (rows == 1) return get(0, 0);
-        if (rows == 2) return get(0, 0) * get(1, 1) - get(0, 1) * get(1, 0);
-
-        T determinant = T{};
-        for (int j = 0; j < cols; ++j) {
-            matrix<T> submatrix(rows - 1, cols - 1);
-            for (int i = 1; i < rows; ++i)
-                for (int k = 0, l = 0; k < cols; ++k)
-                    if (k != j)
-                        submatrix.get(i - 1, l++) = get(i, k);
-            
-            determinant += (j % 2 == 0 ? 1 : -1) * get(0, j) * submatrix.det();
+        static_assert(R == C, "Matrix must be square for determinant");
+        if constexpr (R == 1) {
+            return vals[0];
+        } else if constexpr (R == 2) {
+            return get(0,0) * get(1,1) - get(0,1) * get(1,0);
+        } else {
+            T result = T{};
+            for (int j = 0; j < C; ++j) {
+                result += get(0,j) * cof().get(0,j);
+            }
+            return result;
         }
-        return determinant;
     }
 
     matrix cof() const {
-        if (rows != cols)
-            throw std::invalid_argument("Matrix must be square for cofactor matrix");
-
-        matrix result(rows, cols);
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < cols; ++j) {
-                matrix<T> submatrix(rows - 1, cols - 1);
-                for (int k = 0, m = 0; k < rows; ++k) {
-                    if (k == i) continue;
-                    for (int l = 0, n = 0; l < cols; ++l) {
-                        if (l == j) continue;
-                        submatrix.get(m, n++) = get(k, l);
+        static_assert(R == C, "Matrix must be square for cofactor");
+        matrix result;
+        for (int i = 0; i < R; ++i)
+            for (int j = 0; j < C; ++j) {
+                matrix<T, R-1, C-1> minor;
+                int minor_i = 0;
+                for (int r = 0; r < R; ++r) {
+                    if (r == i) continue;
+                    int minor_j = 0;
+                    for (int c = 0; c < C; ++c) {
+                        if (c == j) continue;
+                        minor.get(minor_i, minor_j) = get(r, c);
+                        ++minor_j;
                     }
-                    ++m;
+                    ++minor_i;
                 }
-                result.get(i, j) = ((i + j) % 2 == 0 ? 1 : -1) * submatrix.det();
+                result.get(i,j) = ((i + j) % 2 == 0 ? 1 : -1) * minor.det();
             }
-        }
         return result;
     }
 
@@ -212,105 +195,82 @@ public:
     }
 
     matrix inverse() const {
-        T determinant = det();
-        if (std::abs(determinant) < 1e-10)
-            throw std::runtime_error("Matrix is singular");
-        
-        return adj() * (T{1} / determinant);
+        static_assert(R == C, "Matrix must be square for inverse");
+        T d = det();
+        if (d == T{})
+            throw std::runtime_error("Matrix is not invertible");
+        return adj() * (T{1} / d);
     }
 
     matrix circ(const matrix& other) const {
-        if (rows != other.rows || cols != other.cols)
-            throw std::invalid_argument("Matrix dimensions must match for element-wise multiplication");
-        
-        matrix result(rows, cols);
-        for (size_t i = 0; i < vals.size(); ++i)
-            result.vals[i] = vals[i] * other.vals[i];
+        matrix result;
+        std::transform(vals.begin(), vals.end(), other.vals.begin(),
+                      result.vals.begin(), std::multiplies<T>());
         return result;
     }
 
     T mean() const {
-        if (vals.empty()) return T{};
-        return std::accumulate(vals.begin(), vals.end(), T{}) / T(vals.size());
+        return std::accumulate(vals.begin(), vals.end(), T{}) / (R * C);
     }
 
     T meanRow(int i) const {
-        auto row = getRow(i);
-        return std::accumulate(row.begin(), row.end(), T{}) / T(cols);
+        return std::accumulate(vals.begin() + i * C, vals.begin() + (i + 1) * C, T{}) / C;
     }
 
     T meanCol(int j) const {
-        auto col = getCol(j);
-        return std::accumulate(col.begin(), col.end(), T{}) / T(rows);
+        T sum = T{};
+        for (int i = 0; i < R; ++i)
+            sum += get(i, j);
+        return sum / R;
     }
 
-    std::vector<T> meanRows() const {
-        std::vector<T> means(rows);
-        for (int i = 0; i < rows; ++i)
+    std::array<T, R> meanRows() const {
+        std::array<T, R> means;
+        for (int i = 0; i < R; ++i)
             means[i] = meanRow(i);
         return means;
     }
 
-    std::vector<T> meanCols() const {
-        std::vector<T> means(cols);
-        for (int j = 0; j < cols; ++j)
+    std::array<T, C> meanCols() const {
+        std::array<T, C> means;
+        for (int j = 0; j < C; ++j)
             means[j] = meanCol(j);
         return means;
     }
 
-    std::vector<std::vector<T>> rowSpace() const {
-
-        matrix temp = *this;
-        return gaussianElimination(temp).first;
-    }
-
-    std::vector<std::vector<T>> colSpace() const {
-
-        return transpose().rowSpace();
-    }
-
-    std::vector<std::vector<T>> null() const {
-
-        matrix temp = *this;
-        auto [reduced, pivot_cols] = gaussianElimination(temp);
-        
-        std::vector<std::vector<T>> basis;
-        std::vector<bool> is_pivot(cols, false);
-        for (int col : pivot_cols) is_pivot[col] = true;
-
-        for (int j = 0; j < cols; ++j) {
-            if (is_pivot[j]) continue;
-            
-            std::vector<T> basis_vector(cols, T{});
-            basis_vector[j] = T{1};
-            
-            for (size_t i = 0; i < pivot_cols.size(); ++i) {
-                int pivot_col = pivot_cols[i];
-                basis_vector[pivot_col] = -reduced[i][j];
-            }
-            
-            basis.push_back(basis_vector);
-        }
-        
-        return basis;
-    }
-
-    std::vector<std::vector<T>> leftNull() const {
-
-        return transpose().null();
-    }
-
     int rank() const {
         matrix temp = *this;
-        return gaussianElimination(temp).first.size();
+        int rank = 0;
+        std::array<bool, R> row_used;
+        row_used.fill(false);
+
+        for (int j = 0; j < C; ++j) {
+            int i;
+            for (i = 0; i < R; ++i) {
+                if (!row_used[i] && std::abs(temp.get(i, j)) > T{1e-10})
+                    break;
+            }
+            
+            if (i != R) {
+                ++rank;
+                row_used[i] = true;
+                for (int p = 0; p < R; ++p) {
+                    if (p != i && std::abs(temp.get(p, j)) > T{1e-10}) {
+                        T factor = temp.get(p, j) / temp.get(i, j);
+                        for (int k = 0; k < C; ++k)
+                            temp.get(p, k) -= factor * temp.get(i, k);
+                    }
+                }
+            }
+        }
+        
+        return rank;
     }
 
     matrix& unit() {
-        if (rows != cols)
-            throw std::invalid_argument("Matrix must be square for unit matrix");
-        
-        std::fill(vals.begin(), vals.end(), T{});
-        for (int i = 0; i < rows; ++i)
+        static_assert(R == C, "Matrix must be square for unit matrix");
+        zero();
+        for (int i = 0; i < R; ++i)
             get(i, i) = T{1};
         return *this;
     }
@@ -320,70 +280,47 @@ public:
         return *this;
     }
 
-    matrix power(int n) {
-        if (rows != cols)
-            throw std::invalid_argument("Matrix must be square for power operation");
-
+    matrix pow(int n) {
+        static_assert(R == C, "Matrix must be square for power operation");
         if (n == 0) {
-            matrix result = *this;
+            matrix result;
             return result.unit();
         }
-
         if (n < 0) {
-            matrix result = inverse();
-            return result.power(-n);
+            return inverse().pow(-n);
         }
-
-        matrix result = *this;
-        matrix temp = *this;
-        --n;
-        
-        while (n > 0) {
-            if (n % 2 == 1)
-                result *= temp;
-            if (n > 1)
-                temp *= temp;
-            n /= 2;
+        if (n == 1) {
+            return *this;
         }
-        
-        return result;
+        if (n % 2 == 0) {
+            matrix half = pow(n/2);
+            return half * half;
+        }
+        return *this * pow(n-1);
     }
 
-    std::pair<std::vector<std::vector<T>>, std::vector<int>> gaussianElimination(matrix& m) const {
-        std::vector<std::vector<T>> result;
-        std::vector<int> pivot_cols;
-        
-        int pivot_row = 0;
-        for (int j = 0; j < m.cols && pivot_row < m.rows; ++j) {
-            int pivot = pivot_row;
-            while (pivot < m.rows && std::abs(m.get(pivot, j)) < 1e-10)
-                ++pivot;
-            
-            if (pivot < m.rows) {
-                if (pivot != pivot_row) {
-                    for (int k = 0; k < m.cols; ++k)
-                        std::swap(m.get(pivot, k), m.get(pivot_row, k));
-                }
-                
-                T pivot_val = m.get(pivot_row, j);
-                for (int k = 0; k < m.cols; ++k)
-                    m.get(pivot_row, k) /= pivot_val;
-                
-                for (int i = 0; i < m.rows; ++i) {
-                    if (i != pivot_row) {
-                        T factor = m.get(i, j);
-                        for (int k = 0; k < m.cols; ++k)
-                            m.get(i, k) -= factor * m.get(pivot_row, k);
-                    }
-                }
-                
-                result.push_back(m.getRow(pivot_row));
-                pivot_cols.push_back(j);
-                ++pivot_row;
-            }
-        }
-        
-        return {result, pivot_cols};
+    bool inRow(const std::array<T, C>& vec) const {
+        matrix aug(R, C+1);
+        for (int i = 0; i < R; ++i)
+            for (int j = 0; j < C; ++j)
+                aug.get(i,j) = get(i,j);
+        for (int i = 0; i < R; ++i)
+            aug.get(i,C) = vec[i];
+        return aug.rank() == rank();
+    }
+
+    bool inCol(const std::array<T, R>& vec) const {
+        return transpose().inRow(vec);
+    }
+
+    bool inNull(const std::array<T, C>& vec, T epsilon) const {
+        matrix result = *this * matrix<T,C,1>{vec};
+        return std::all_of(result.vals.begin(), result.vals.end(),
+                          [epsilon](const T& val) { return std::abs(val) < epsilon; });
+    }
+
+    bool inLeftNull(const std::array<T, R>& vec, T epsilon) const {
+        return transpose().inNull(vec, epsilon);
     }
 };
 
